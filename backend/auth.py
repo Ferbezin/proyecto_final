@@ -5,7 +5,7 @@ def _hash_clave(clave):
     return hashlib.sha256(clave.encode('utf-8')).hexdigest()
 #Convierte la contraseñaen un hash 
 
-def validar_login(correo, clave):
+def autenticar_usuario(correo, clave):
     correo_clean = correo.strip()
     clave_input = clave.strip()
     clave_hashed = _hash_clave(clave_input)
@@ -54,13 +54,13 @@ def registrar_nuevo_usuario(cc, nombre, correo, telefono, clave):
 if __name__ == "__main__":
     print("Probando validacion de Login con Hash...")
     
-    user = validar_login("juan.perez@email.com", "pass123")
+    user = autenticar_usuario("juan.perez@email.com", "pass123")
     if user:
         print(f"Login Exitoso: Bienvenido {user['nombre']} | Rol: {user['rol']}")
     else:
         print("Fallo de autenticacion en Prueba 1")
         
-    user_fail = validar_login("juan.perez@email.com", "clave_erronea")
+    user_fail = autenticar_usuario("juan.perez@email.com", "clave_erronea")
     if not user_fail:
         print("Prueba de contraseña incorrecta superada.")
     else:
