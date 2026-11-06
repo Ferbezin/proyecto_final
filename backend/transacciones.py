@@ -1,11 +1,12 @@
 from backend.conexion import ejecutar_procedimiento, ejecutar_consulta
-from fpdf import FPDF #Hay que descargar esta libreria desde la terminal de visual si algo, solo hacer un "pip install fpdf2"
+from fpdf import FPDF
 import os
+import psycopg2
 
 def listar_productos():
     query = """
-        SELECT codigo_producto, nombre, precio_lista, cantidad_disponible 
-        FROM articulo 
+        SELECT codigo_producto, nombre, precio_lista, cantidad_disponible
+        FROM articulo
         ORDER BY codigo_producto ASC;
     """
     return ejecutar_consulta(query, fetch=True)
@@ -19,83 +20,114 @@ def registrar_pedido(cc_usuario, codigo_producto, cantidad, metodo_pago):
         return True, id_pedido
     else:
         return False, res
-    #Yap, el solamente hace el pedido que se tenga que registrar, ya el como lo registra hace parte del que desarrolle la parte grafica
 
 def transferir_inventario(codigo_producto, id_bodega_origen, id_bodega_destino, cantidad):
     params = (codigo_producto, id_bodega_origen, id_bodega_destino, cantidad)
-    exito, res = ejecutar_procedimiento("sp_actualizar_inventario_bodega", params)
+    exito, res = ejecutar_procedimiento("sp_atualizar_inventario_bodega", params)
     
     if exito:
         return True, "Transferencia de inventario realizada correctamente."
     else:
         return False, res
 
-    #La funcion se llama transferir_inventario pero realmente solo actualiza el inventario de una unica bodega
 
-    #Decidí hacer esta funcion de abajo que hace un comprobante de pago
+# --- FUNCIONES DEL MÓDULO CRUD DE ARTÍCULOS ---
 
-def generar_comprobante_pdf(id_pedido, nombre_cliente, producto, cantidad, total, metodo_pago, ruta_salida="comprobante.pdf"):
-    """
-    Genera un archivo PDF profesional con el comprobante de compra.
-    """
+def crear_articulo(nombre, precio, stock):
+    try:
+        conexion = psycopg2.connect(
+            dbname="proyecto_final",
+            user="postgres",
+            password="1234",  # Tu contraseña actual
+            host="localhost",
+            port="5432"
+        )
+        conexion.autocommit = True
+        cursor = conexion.cursor()
+        query = "INSERT INTO articulo (nombre, precio_lista, cantidad_disponible) VALUES (%s, %s, %s);"
+        cursor.execute(query, (str(nombre), float(precio), int(stock)))
+        cursor.close()
+        conexion.close()
+        return True, "Artículo creado exitosamente."
+    except Exception as e:
+        return False, str(e)
+
+def actualizar_articulo(codigo_producto, nombre, precio, stock):
+    try:
+        conexion = psycopg2.connect(
+            dbname="proyecto_final",
+            user="postgres",
+            password="1234",  # Tu contraseña actual
+            host="localhost",
+            port="5432"
+        )
+        conexion.autocommit = True
+        cursor = conexion.cursor()
+        query = "UPDATE articulo SET nombre = %s, precio_lista = %s, cantidad_disponible = %s WHERE codigo_producto = %s;"
+        cursor.execute(query, (str(nombre), float(precio), int(stock), int(codigo_producto)))
+        cursor.close()
+        conexion.close()
+        return True, "Artículo actualizado exitosamente."
+    except Exception as e:
+        return False, str(e)
+
+def eliminar_articulo(codigo_producto):
+    try:
+        conexion = psycopg2.connect(
+            dbname="proyecto_final",
+            user="postgres",
+            password="1234",  # Tu contraseña actual
+            host="localhost",
+            port="5432"
+        )
+        conexion.autocommit = True
+        cursor = conexion.cursor()
+        query = "DELETE FROM articulo WHERE codigo_producto = %s;"
+        cursor.execute(query, (int(codigo_producto),))
+        cursor.close()
+        conexion.close()
+        return True, "Artículo eliminado exitosamente."
+    except Exception as e:
+        return False, str(e)
+
+
+# --- GENERACIÓN DE COMPROBANTE PDF ---
+
+def generar_comprobante_pdf(id_pedido, nombre_cliente, lista_carrito, total_general, metodo_pago, ruta_salida):
     try:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", "B", 16)
         
-        # Encabezado
-        pdf.cell(0, 10, "COMPROBANTE DE COMPRA", ln=True, align="C")
-        pdf.ln(5)
+        pdf.cell(0, 10, "COMPROBANTE DE COMPRA", 0, 1, "C")
+        pdf.ln(10)
         
-        pdf.set_font("Arial", "", 12)
-        pdf.cell(0, 8, f"ID Pedido: #{id_pedido}", ln=True)
-        pdf.cell(0, 8, f"Cliente: {nombre_cliente}", ln=True)
-        pdf.cell(0, 8, f"Metodo de Pago: {metodo_pago}", ln=True)
-        pdf.ln(5)
+        pdf.set_font("Arial", "", 11)
+        pdf.cell(0, 6, f"ID Pedido: #{id_pedido}", 0, 1)
+        pdf.cell(0, 6, f"Cliente: {nombre_cliente}", 0, 1)
+        pdf.cell(0, 6, f"Metodo de Pago: {metodo_pago}", 0, 1)
+        pdf.ln(10)
         
-        # Linea divisoria
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(5)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(90, 8, "Producto", 1, 0, "C")
+        pdf.cell(40, 8, "Cantidad", 1, 0, "C")
+        pdf.cell(50, 8, "Subtotal", 1, 1, "C")
         
-        # Detalle del producto
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(100, 8, "Producto", border=1)
-        pdf.cell(40, 8, "Cantidad", border=1, align="C")
-        pdf.cell(50, 8, "Total", border=1, align="C")
-        pdf.ln()
+        pdf.set_font("Arial", "", 10)
+        for item in lista_carrito:
+            pdf.cell(90, 8, str(item['nombre']), 1, 0, "L")
+            pdf.cell(40, 8, str(item['cantidad']), 1, 0, "C")
+            pdf.cell(50, 8, f"${item['subtotal']:,.2f}", 1, 1, "R")
+            
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(130, 8, "TOTAL GENERAL:", 1, 0, "R")
+        pdf.cell(50, 8, f"${total_general:,.2f}", 1, 1, "R")
         
-        pdf.set_font("Arial", "", 12)
-        pdf.cell(100, 8, str(producto), border=1)
-        pdf.cell(40, 8, str(cantidad), border=1, align="C")
-        pdf.cell(50, 8, f"${total:,.2f}", border=1, align="C")
         pdf.ln(15)
+        pdf.set_font("Arial", "I", 9)
+        pdf.cell(0, 6, "Gracias por su compra en nuestra plataforma.", 0, 1, "C")
         
-        # Pie de pagina
-        pdf.set_font("Arial", "I", 10)
-        pdf.cell(0, 10, "Gracias por su compra en nuestra plataforma.", ln=True, align="C")
-        
-        # Guardar archivo
         pdf.output(ruta_salida)
-        return True, f"Comprobante guardado exitosamente en '{ruta_salida}'."
-    
+        return True, f"Comprobante guardado como {ruta_salida}"
     except Exception as e:
-        return False, f"Error al generar el PDF: {e}"
-
-if __name__ == "__main__":
-    print("Probando listado de productos:")
-    productos = listar_productos()
-    print(productos)
-    
-    print("\nProbando registro de pedido:")
-    exito_ped, res_ped = registrar_pedido(
-        cc_usuario=11223344, 
-        codigo_producto=1, 
-        cantidad=1, 
-        metodo_pago='PSE'
-    )
-    if exito_ped:
-        print(f"Pedido registrado exitosamente. ID Pedido: {res_ped}")
-    else:
-        print(f"Error al registrar pedido: {res_ped}")
-
-    #Esto tambien se puede quitar solo es una prueba para ver si funciona sin interfaz grafica.
+        return False, str(e)
