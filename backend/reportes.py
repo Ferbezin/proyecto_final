@@ -5,15 +5,28 @@ import csv
 #De aqui en adelante seran las funciones que mas o menos tenga que usar el de la interfaz para ver como muestra las consultas mas apropiadas
 #Estos son fundamentalmente los SELECTS que vaya a usar.
 
-def obtener_top_productos_vendidos(limite=5):
+def obtener_top_productos_vendidos(limite=5, filtro="Histórico Completo"):
+    # 1. Consulta base uniendo la tabla 'pedido'
     query = """
-        SELECT a.codigo_producto, a.nombre, SUM(pa.cantidad) AS total_vendido
-        FROM pedido_articulo pa
-        JOIN articulo a ON pa.codigo_producto = a.codigo_producto
-        GROUP BY a.codigo_producto, a.nombre
+        SELECT p.codigo_producto, a.nombre, SUM(p.cantidad_vendida) as total_vendido
+        FROM pedido_articulo p
+        JOIN articulo a ON p.codigo_producto = a.codigo_producto
+        JOIN pedido ped ON p.id_pedido = ped.id_pedido
+    """
+    
+    # 2. Aplicar el filtro de tiempo si es necesario
+    if filtro == "Últimos 5 min":
+        query += " WHERE ped.f_transaccion >= NOW() - INTERVAL '5 minutes'"
+    elif filtro == "Hoy":
+        query += " WHERE DATE(ped.f_transaccion) = CURRENT_DATE"
+        
+    # 3. Agrupar y ordenar
+    query += """
+        GROUP BY p.codigo_producto, a.nombre
         ORDER BY total_vendido DESC
         LIMIT %s;
     """
+    
     return ejecutar_consulta(query, params=(limite,), fetch=True)
 
 def obtener_resumen_ventas_por_cliente():
@@ -34,6 +47,14 @@ def obtener_inventario_critico(umbral_minimo=10):
         ORDER BY cantidad_disponible ASC;
     """
     return ejecutar_consulta(query, params=(umbral_minimo,), fetch=True)
+
+def obtener_inventario_completo():
+    query = """
+        SELECT codigo_producto, nombre, cantidad_disponible
+        FROM articulo
+        ORDER BY cantidad_disponible ASC;
+    """
+    return ejecutar_consulta(query, fetch=True)
 
 #IMPORTANTE: Hay que hacer un botón o algo para la funcion de aqui abajo, la cual, crea un csv con los datos
 #de cualquiera de las 3 consultas anteriores, si lo ve pertinente, puede hacer mas consultas utiles.

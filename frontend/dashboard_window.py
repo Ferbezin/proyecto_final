@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from backend.transacciones import listar_productos, registrar_pedido, generar_comprobante_pdf
 from frontend.crud_window import CRUDWindow
+from frontend.reportes_window import ReportesWindow
 
 class DashboardWindow:
     def __init__(self, root, usuario_actual):
@@ -42,14 +43,31 @@ class DashboardWindow:
             cursor="hand2"
         ).pack(side="right", padx=5)
 
-        # Si es Administrador, agregamos el botón del panel gerencial
+
+
+       # Si es Administrador, agregamos los botones de gestión
         if self.usuario_actual['rol'] == 'Administrador':
+            # 1. Botón original para el CRUD (Gestión de Catálogo)
             tk.Button(
-                frame_header, 
-                text="⚙ Panel Gerencial", 
-                command=self.abrir_panel_admin, 
-                bg="#ffc107", 
-                fg="#212529", 
+                frame_header,
+                text="⚙ Panel Gerencial",
+                command=self.abrir_panel_admin,
+                bg="#ffc107",
+                fg="#212529",
+                font=("Segoe UI", 9, "bold"),
+                relief="flat",
+                padx=10,
+                pady=5,
+                cursor="hand2"
+            ).pack(side="right", padx=5)
+
+            # 2. NUEVO Botón para los Reportes y Gráficas
+            tk.Button(
+                frame_header,
+                text="📊 Reportes",
+                command=self.abrir_panel_reportes,
+                bg="#0dcaf0",
+                fg="black",
                 font=("Segoe UI", 9, "bold"),
                 relief="flat",
                 padx=10,
@@ -213,27 +231,40 @@ class DashboardWindow:
             messagebox.showwarning("Vacío", "Agrega al menos un producto al pedido.")
             return
             
-        item_principal = self.carrito[0]
-        
-        exito, resultado = registrar_pedido(
-            cc_usuario=self.usuario_actual['cc'],
-            codigo_producto=item_principal['id'],
-            cantidad=item_principal['cantidad'],
-            metodo_pago="PSE"
-        )
-        
-        if exito:
-            id_pedido = resultado
-            messagebox.showinfo("Éxito", f"¡Pedido #{id_pedido} registrado exitosamente en PostgreSQL!")
+        id_pedido_final = None
+        errores = False
+
+        # Recorremos todo el carrito para registrar cada producto
+        for item in self.carrito:
+            exito, resultado = registrar_pedido(
+                cc_usuario=self.usuario_actual['cc'],
+                codigo_producto=item['id'],
+                cantidad=item['cantidad'],
+                metodo_pago="PSE"
+            )
+            
+            if exito:
+                # Guardamos el primer ID generado para usarlo en el nombre del PDF
+                if not id_pedido_final:
+                    id_pedido_final = resultado
+            else:
+                errores = True
+                messagebox.showerror("Error de Transacción", f"No se pudo registrar {item['nombre']}: {resultado}")
+                break
+
+        # Si el bucle termina sin errores, generamos el PDF y limpiamos
+        if not errores and id_pedido_final:
+            messagebox.showinfo("Éxito", f"¡Pedido #{id_pedido_final} registrado exitosamente en PostgreSQL!")
             
             ex_pdf, msj_pdf = generar_comprobante_pdf(
-                id_pedido=id_pedido,
+                id_pedido=id_pedido_final,
                 nombre_cliente=self.usuario_actual['nombre'],
                 lista_carrito=self.carrito,
                 total_general=self.total_pedido,
                 metodo_pago="PSE",
-                ruta_salida=f"comprobante_{id_pedido}.pdf"
+                ruta_salida=f"comprobante_{id_pedido_final}.pdf"
             )
+            
             if ex_pdf:
                 messagebox.showinfo("PDF Creado", msj_pdf)
             
@@ -241,8 +272,6 @@ class DashboardWindow:
             self.total_pedido = 0.0
             self.actualizar_texto_resumen()
             self.cargar_catalogo()
-        else:
-            messagebox.showerror("Error de Transacción", f"No se pudo completar: {resultado}")
 
     def abrir_panel_admin(self):
         ventana_crud = tk.Toplevel(self.root)
@@ -256,3 +285,7 @@ class DashboardWindow:
             self.cargar_catalogo()
     def cerrar_sesion(self):
         self.root.destroy()
+    def abrir_panel_reportes(self):
+        ventana_reportes = tk.Toplevel(self.root)
+        app_reportes = ReportesWindow(ventana_reportes)
+        ventana_reportes.grab_set() # Evita clics fuera de la ventana de reportes
