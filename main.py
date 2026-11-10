@@ -1,12 +1,13 @@
-import tkinter as tk
+# -*- coding: utf-8 -*-
+import customtkinter as ctk
 from frontend.login_window import LoginWindow
 
 if __name__ == "__main__":
-    # Creamos la ventana principal vacía
-    root = tk.Tk()
+    # Usamos ctk.CTk() en lugar de tk.Tk() para activar el motor gráfico moderno
+    root = ctk.CTk()
     
-    # Le inyectamos el diseño que acabamos de hacer
+    # Inyectamos la ventana de Login
     app = LoginWindow(root)
     
-    # Mantenemos la ventana abierta
+    # Mantenemos la aplicación corriendo
     root.mainloop()

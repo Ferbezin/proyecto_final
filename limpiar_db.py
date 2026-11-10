@@ -4,7 +4,7 @@ def reiniciar_sistema_completo():
     conexion = conectar_bd()
     
     if not conexion:
-        print("❌ Error: No se pudo conectar a la base de datos.")
+        print("Error: No se pudo conectar a la base de datos.")
         return
 
     try:
@@ -18,12 +18,12 @@ def reiniciar_sistema_completo():
         
         conexion.commit()
         
-        print("✅ Sistema reseteado con éxito.")
-        print("✅ Comprobantes, histórico general, ventas de hoy y 5 min están en CERO.")
-        print("✅ El stock de todos los artículos ha vuelto a 50 unidades.")
+        print("Sistema reseteado con éxito.")
+        print("Comprobantes, histórico general, ventas de hoy y 5 min están en CERO.")
+        print("El stock de todos los artículos ha vuelto a 50 unidades.")
         
     except Exception as e:
-        print(f"❌ Error al limpiar: {e}")
+        print(f"Error al limpiar: {e}")
         conexion.rollback()
     finally:
         if cursor: 

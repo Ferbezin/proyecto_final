@@ -25,7 +25,7 @@ def autenticar_usuario(correo, clave):
     if usuario['clave'] == clave_hashed or usuario['clave'] == clave_input:
         del usuario['clave']
         
-        if usuario['cc'] in [11223344, 10203040]:
+        if usuario['cc'] in [11223344, 1081]:
             usuario['rol'] = 'Administrador'
         else:
             usuario['rol'] = 'Cliente'

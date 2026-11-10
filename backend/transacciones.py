@@ -1,7 +1,11 @@
+# -*- coding: utf-8 -*-
 from backend.conexion import ejecutar_procedimiento, ejecutar_consulta
+from backend.email_service import enviar_comprobante_email
 from fpdf import FPDF
 import os
 import psycopg2
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 def listar_productos():
     query = """
@@ -10,6 +14,61 @@ def listar_productos():
         ORDER BY codigo_producto ASC;
     """
     return ejecutar_consulta(query, fetch=True)
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+def listar_productos_con_categoria():
+    """
+    Obtiene la lista de artículos resolviendo problemas de codificación de tildes/caracteres especiales.
+    """
+    try:
+        conexion = psycopg2.connect(
+            dbname="proyecto_final",
+            user="postgres",
+            password="12345",
+            host="localhost",
+            port="5432",
+            options="-c client_encoding=UTF8"
+        )
+        conexion.set_client_encoding('UTF8')
+        cursor = conexion.cursor(cursor_factory=RealDictCursor)
+        
+        query = """
+            SELECT 
+                a.codigo_producto,
+                a.nombre,
+                a.precio_lista,
+                a.cantidad_disponible,
+                COALESCE(c.nombre, 'Sin Categoría') AS categoria
+            FROM articulo a
+            LEFT JOIN categoria c ON a.id_categoria = c.id_categoria
+            ORDER BY a.codigo_producto ASC;
+        """
+        cursor.execute(query)
+        productos = cursor.fetchall()
+        
+        # Limpieza activa de codificación para tildes y ñ
+        productos_limpios = []
+        for p in productos:
+            nombre = p['nombre']
+            categoria = p['categoria']
+            
+            if isinstance(nombre, bytes):
+                nombre = nombre.decode('utf-8', errors='ignore')
+            if isinstance(categoria, bytes):
+                categoria = categoria.decode('utf-8', errors='ignore')
+                
+            p['nombre'] = str(nombre)
+            p['categoria'] = str(categoria)
+            productos_limpios.append(p)
+
+        cursor.close()
+        conexion.close()
+        return productos_limpios
+    except Exception as e:
+        print(f"Error al listar productos con categoría: {e}")
+        return []
 
 def registrar_pedido(cc_usuario, codigo_producto, cantidad, metodo_pago):
     params = (cc_usuario, codigo_producto, cantidad, metodo_pago, None)
@@ -33,41 +92,58 @@ def transferir_inventario(codigo_producto, id_bodega_origen, id_bodega_destino, 
 
 # --- FUNCIONES DEL MÓDULO CRUD DE ARTÍCULOS ---
 
-def crear_articulo(nombre, precio, stock):
+def obtener_categorias_db():
+    """Obtiene el listado de categorías disponibles."""
     try:
         conexion = psycopg2.connect(
-            dbname="proyecto_final",
-            user="postgres",
-            password="1234",  # Tu contraseña actual
-            host="localhost",
-            port="5432"
+            dbname="proyecto_final", user="postgres", password="12345", host="localhost", port="5432"
+        )
+        cursor = conexion.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT id_categoria, nombre FROM categoria ORDER BY nombre ASC;")
+        cats = cursor.fetchall()
+        cursor.close()
+        conexion.close()
+        return cats
+    except Exception as e:
+        print(f"Error al obtener categorias: {e}")
+        return []
+
+def crear_articulo_con_cat(nombre, precio, stock, id_categoria):
+    """Crea un artículo asignándole su categoría."""
+    try:
+        conexion = psycopg2.connect(
+            dbname="proyecto_final", user="postgres", password="12345", host="localhost", port="5432"
         )
         conexion.autocommit = True
         cursor = conexion.cursor()
-        query = "INSERT INTO articulo (nombre, precio_lista, cantidad_disponible) VALUES (%s, %s, %s);"
-        cursor.execute(query, (str(nombre), float(precio), int(stock)))
+        query = """
+            INSERT INTO articulo (nombre, precio_lista, cantidad_disponible, id_categoria)
+            VALUES (%s, %s, %s, %s);
+        """
+        cursor.execute(query, (nombre, precio, stock, id_categoria))
         cursor.close()
         conexion.close()
         return True, "Artículo creado exitosamente."
     except Exception as e:
         return False, str(e)
 
-def actualizar_articulo(codigo_producto, nombre, precio, stock):
+def actualizar_articulo_con_cat(codigo_producto, nombre, precio, stock, id_categoria):
+    """Actualiza los datos de un artículo existente."""
     try:
         conexion = psycopg2.connect(
-            dbname="proyecto_final",
-            user="postgres",
-            password="1234",  # Tu contraseña actual
-            host="localhost",
-            port="5432"
+            dbname="proyecto_final", user="postgres", password="12345", host="localhost", port="5432"
         )
         conexion.autocommit = True
         cursor = conexion.cursor()
-        query = "UPDATE articulo SET nombre = %s, precio_lista = %s, cantidad_disponible = %s WHERE codigo_producto = %s;"
-        cursor.execute(query, (str(nombre), float(precio), int(stock), int(codigo_producto)))
+        query = """
+            UPDATE articulo 
+            SET nombre = %s, precio_lista = %s, cantidad_disponible = %s, id_categoria = %s
+            WHERE codigo_producto = %s;
+        """
+        cursor.execute(query, (nombre, precio, stock, id_categoria, codigo_producto))
         cursor.close()
         conexion.close()
-        return True, "Artículo actualizado exitosamente."
+        return True, "Artículo actualizado correctamente."
     except Exception as e:
         return False, str(e)
 
@@ -91,9 +167,9 @@ def eliminar_articulo(codigo_producto):
         return False, str(e)
 
 
-# --- GENERACIÓN DE COMPROBANTE PDF ---
+# --- GENERACIÓN Y ENVÍO DE COMPROBANTE PDF ---
 
-def generar_comprobante_pdf(id_pedido, nombre_cliente, lista_carrito, total_general, metodo_pago, ruta_salida):
+def generar_comprobante_pdf(id_pedido, nombre_cliente, lista_carrito, total_general, metodo_pago, ruta_salida, correo_cliente=None):
     try:
         pdf = FPDF()
         pdf.add_page()
@@ -127,14 +203,26 @@ def generar_comprobante_pdf(id_pedido, nombre_cliente, lista_carrito, total_gene
         pdf.set_font("Arial", "I", 9)
         pdf.cell(0, 6, "Gracias por su compra en nuestra plataforma.", 0, 1, "C")
         
+        # 1. Guardar el PDF en disco
         pdf.output(ruta_salida)
-        return True, f"Comprobante guardado como {ruta_salida}"
+        msg_resultado = f"Comprobante guardado en {ruta_salida}"
+
+        # 2. Si se proporciona correo, enviarlo en automático
+        if correo_cliente:
+            exito_mail, msg_mail = enviar_comprobante_email(correo_cliente, nombre_cliente, ruta_salida)
+            if exito_mail:
+                msg_resultado += " y enviado por correo electrónico."
+            else:
+                msg_resultado += f", pero falló el envío del correo: {msg_mail}"
+
+        return True, msg_resultado
     except Exception as e:
         return False, str(e)
 
-# --- NUEVA FUNCIÓN PARA SOLUCIONAR LOS SALTOS DE NÚMEROS ---
+
+# --- FUNCIÓN DE REGISTRO COMPLETO DEL CARRITO ---
+
 def registrar_carrito_completo(cc_usuario, carrito, total_pedido, metodo_pago="PSE"):
-    # Importamos tu conexión real
     from backend.conexion import conectar_bd 
     
     conexion = conectar_bd()
@@ -155,30 +243,26 @@ def registrar_carrito_completo(cc_usuario, carrito, total_pedido, metodo_pago="P
         
         # 2. Guardar todos los productos bajo ESE MISMO id_pedido
         for item in carrito:
-            # Buscamos el precio actual del producto en la base de datos
             cursor.execute("SELECT precio_lista FROM articulo WHERE codigo_producto = %s", (item['id'],))
             precio_real = cursor.fetchone()[0]
             
-            # Guardamos el detalle de la venta sin crear un nuevo ID de pedido
             cursor.execute("""
                 INSERT INTO pedido_articulo (id_pedido, codigo_producto, cantidad_vendida, precio_facturado)
                 VALUES (%s, %s, %s, %s);
             """, (id_pedido, item['id'], item['cantidad'], precio_real))
             
-            # Descontamos el stock
             cursor.execute("""
                 UPDATE articulo 
                 SET cantidad_disponible = cantidad_disponible - %s
                 WHERE codigo_producto = %s;
             """, (item['cantidad'], item['id']))
         
-       # 3. Registrar el pago de la factura
+        # 3. Registrar el pago de la factura
         cursor.execute("""
             INSERT INTO factura_pago (id_pedido, metodo_pago, valor_pagado)
             VALUES (%s, %s, %s);
         """, (id_pedido, metodo_pago, total_pedido))
         
-        # Guardamos todo de un solo golpe
         conexion.commit() 
         return True, id_pedido
         
@@ -188,5 +272,3 @@ def registrar_carrito_completo(cc_usuario, carrito, total_pedido, metodo_pago="P
     finally:
         if cursor: cursor.close()
         if conexion: conexion.close()
-
-    

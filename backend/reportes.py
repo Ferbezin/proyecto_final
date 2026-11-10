@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from backend.conexion import ejecutar_consulta
 
 import csv

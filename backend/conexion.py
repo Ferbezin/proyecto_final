@@ -4,7 +4,7 @@ import psycopg2
 DB_CONFIG = {
     "dbname": "proyecto_final",
     "user": "postgres",
-    "password": "1234",  # Verifica que esta sea tu contraseña
+    "password": "12345",  # Verifica que esta sea tu contraseña
     "host": "localhost",
     "port": "5432"
 }
