@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from backend.transacciones import listar_productos, registrar_pedido, generar_comprobante_pdf
+from backend.transacciones import listar_productos, generar_comprobante_pdf, registrar_carrito_completo
 from frontend.crud_window import CRUDWindow
 from frontend.reportes_window import ReportesWindow
 
@@ -9,8 +9,9 @@ class DashboardWindow:
         self.root = root
         self.usuario_actual = usuario_actual
         self.root.title(f"E-Market Express - Dashboard ({self.usuario_actual['rol']})")
-        self.root.geometry("800x620")
-        self.root.resizable(False, False)
+        
+        # PANTALLA COMPLETA: Maximizamos la ventana
+        self.root.state('zoomed')
         self.root.configure(bg="#f8f9fa")
 
         # Variables para el pedido temporal
@@ -42,8 +43,6 @@ class DashboardWindow:
             pady=5,
             cursor="hand2"
         ).pack(side="right", padx=5)
-
-
 
        # Si es Administrador, agregamos los botones de gestión
         if self.usuario_actual['rol'] == 'Administrador':
@@ -190,34 +189,66 @@ class DashboardWindow:
     def agregar_al_pedido(self):
         seleccion = self.tabla_productos.selection()
         if not seleccion:
-            messagebox.showwarning("Atención", "Selecciona un producto de la tabla.")
+            messagebox.showwarning("Advertencia", "Selecciona un producto del catálogo.")
             return
-            
-        valores = self.tabla_productos.item(seleccion[0])['values']
-        id_prod = valores[0]
-        nombre = valores[1]
+
+        item = self.tabla_productos.item(seleccion[0])
+        valores = item['values']
         
-        precio = float(str(valores[2]).replace("$", "").replace(",", ""))
-        stock_disp = int(valores[3])
+        id_prod = int(valores[0])
+        nombre_prod = valores[1]
         
+        # Extraer precio (limpiando $ y comas si los hay por el formato de la tabla)
+        precio_str = str(valores[2]).replace('$', '').replace(',', '').strip()
+        precio_prod = float(precio_str)
+        stock = int(valores[3])
+
         try:
-            cant = int(self.txt_cantidad.get())
-            if cant <= 0: raise ValueError
-        except:
+            cantidad = int(self.txt_cantidad.get())
+            if cantidad <= 0: 
+                raise ValueError
+        except ValueError:
             messagebox.showerror("Error", "Ingresa una cantidad válida mayor a 0.")
             return
 
-        if cant > stock_disp:
-            messagebox.showerror("Stock Insuficiente", f"Solo hay {stock_disp} unidades disponibles.")
+        if cantidad > stock:
+            messagebox.showwarning("Stock", f"Solo hay {stock} disponibles de este producto.")
             return
 
-        subtotal = cant * precio
+        # --- NUEVA LÓGICA: Verificar si el producto ya está en el carrito ---
+        for articulo in self.carrito:
+            if articulo['id'] == id_prod:
+                # Verificamos que la suma total no supere el stock de la bodega
+                if articulo['cantidad'] + cantidad > stock:
+                    messagebox.showwarning("Stock Insuficiente", f"No puedes agregar más. El stock máximo es {stock}.")
+                    return
+                
+                # Actualizamos cantidades y subtotales
+                articulo['cantidad'] += cantidad
+                articulo['subtotal'] = articulo['cantidad'] * articulo['precio']
+                self.total_pedido += (cantidad * articulo['precio'])
+                self.actualizar_texto_resumen()
+                
+                self.txt_cantidad.delete(0, tk.END)
+                self.txt_cantidad.insert(0, "1")
+                return # Terminamos la función aquí para no crear duplicados
+
+        # Si el producto no estaba en el carrito, lo agregamos normalmente
+        subtotal = precio_prod * cantidad
         self.carrito.append({
-            "id": id_prod, "nombre": nombre, "cantidad": cant, "subtotal": subtotal
+            'id': id_prod,
+            'nombre': nombre_prod,
+            'precio': precio_prod,
+            'cantidad': cantidad,
+            'subtotal': subtotal
         })
-        self.total_pedido += subtotal
         
+        self.total_pedido += subtotal
         self.actualizar_texto_resumen()
+        
+        # Limpiar el campo de cantidad
+        self.txt_cantidad.delete(0, tk.END)
+        self.txt_cantidad.insert(0, "1")
 
     def actualizar_texto_resumen(self):
         texto = ""
@@ -231,31 +262,19 @@ class DashboardWindow:
             messagebox.showwarning("Vacío", "Agrega al menos un producto al pedido.")
             return
             
-        id_pedido_final = None
-        errores = False
+        # 1. Enviamos todo el carrito de un solo golpe usando la NUEVA función
+        exito, resultado = registrar_carrito_completo(
+            cc_usuario=self.usuario_actual['cc'],
+            carrito=self.carrito,
+            total_pedido=self.total_pedido,
+            metodo_pago="PSE"
+        )
 
-        # Recorremos todo el carrito para registrar cada producto
-        for item in self.carrito:
-            exito, resultado = registrar_pedido(
-                cc_usuario=self.usuario_actual['cc'],
-                codigo_producto=item['id'],
-                cantidad=item['cantidad'],
-                metodo_pago="PSE"
-            )
+        if exito:
+            id_pedido_final = resultado
+            messagebox.showinfo("Éxito", f"¡Pedido #{id_pedido_final} registrado exitosamente en la base de datos!")
             
-            if exito:
-                # Guardamos el primer ID generado para usarlo en el nombre del PDF
-                if not id_pedido_final:
-                    id_pedido_final = resultado
-            else:
-                errores = True
-                messagebox.showerror("Error de Transacción", f"No se pudo registrar {item['nombre']}: {resultado}")
-                break
-
-        # Si el bucle termina sin errores, generamos el PDF y limpiamos
-        if not errores and id_pedido_final:
-            messagebox.showinfo("Éxito", f"¡Pedido #{id_pedido_final} registrado exitosamente en PostgreSQL!")
-            
+            # 2. Generamos UN SOLO PDF con el ID real de la compra
             ex_pdf, msj_pdf = generar_comprobante_pdf(
                 id_pedido=id_pedido_final,
                 nombre_cliente=self.usuario_actual['nombre'],
@@ -268,10 +287,13 @@ class DashboardWindow:
             if ex_pdf:
                 messagebox.showinfo("PDF Creado", msj_pdf)
             
+            # 3. Limpiamos la pantalla para la siguiente venta
             self.carrito.clear()
             self.total_pedido = 0.0
             self.actualizar_texto_resumen()
             self.cargar_catalogo()
+        else:
+            messagebox.showerror("Error de Transacción", f"No se pudo registrar la compra:\n{resultado}")
 
     def abrir_panel_admin(self):
         ventana_crud = tk.Toplevel(self.root)

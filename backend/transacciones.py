@@ -131,3 +131,62 @@ def generar_comprobante_pdf(id_pedido, nombre_cliente, lista_carrito, total_gene
         return True, f"Comprobante guardado como {ruta_salida}"
     except Exception as e:
         return False, str(e)
+
+# --- NUEVA FUNCIÓN PARA SOLUCIONAR LOS SALTOS DE NÚMEROS ---
+def registrar_carrito_completo(cc_usuario, carrito, total_pedido, metodo_pago="PSE"):
+    # Importamos tu conexión real
+    from backend.conexion import conectar_bd 
+    
+    conexion = conectar_bd()
+    if not conexion:
+        return False, "No se pudo conectar a la base de datos."
+        
+    try:
+        cursor = conexion.cursor()
+        
+        # 1. Crear UN SOLO encabezado de pedido para todo el carrito
+        cursor.execute("""
+            INSERT INTO pedido (cc_usuario, total, estado_id) 
+            VALUES (%s, %s, (SELECT MIN(estado_id) FROM estado_envio)) 
+            RETURNING id_pedido;
+        """, (cc_usuario, total_pedido))
+        
+        id_pedido = cursor.fetchone()[0]
+        
+        # 2. Guardar todos los productos bajo ESE MISMO id_pedido
+        for item in carrito:
+            # Buscamos el precio actual del producto en la base de datos
+            cursor.execute("SELECT precio_lista FROM articulo WHERE codigo_producto = %s", (item['id'],))
+            precio_real = cursor.fetchone()[0]
+            
+            # Guardamos el detalle de la venta sin crear un nuevo ID de pedido
+            cursor.execute("""
+                INSERT INTO pedido_articulo (id_pedido, codigo_producto, cantidad_vendida, precio_facturado)
+                VALUES (%s, %s, %s, %s);
+            """, (id_pedido, item['id'], item['cantidad'], precio_real))
+            
+            # Descontamos el stock
+            cursor.execute("""
+                UPDATE articulo 
+                SET cantidad_disponible = cantidad_disponible - %s
+                WHERE codigo_producto = %s;
+            """, (item['cantidad'], item['id']))
+        
+       # 3. Registrar el pago de la factura
+        cursor.execute("""
+            INSERT INTO factura_pago (id_pedido, metodo_pago, valor_pagado)
+            VALUES (%s, %s, %s);
+        """, (id_pedido, metodo_pago, total_pedido))
+        
+        # Guardamos todo de un solo golpe
+        conexion.commit() 
+        return True, id_pedido
+        
+    except Exception as e:
+        conexion.rollback() 
+        return False, str(e)
+    finally:
+        if cursor: cursor.close()
+        if conexion: conexion.close()
+
+    

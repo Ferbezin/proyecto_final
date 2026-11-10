@@ -6,8 +6,9 @@ class CRUDWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("E-Market Express - Gestión de Catálogo (CRUD)")
-        self.root.geometry("750x550")
-        self.root.resizable(False, False)
+        
+        # PANTALLA COMPLETA: Maximizamos la ventana
+        self.root.state('zoomed')
         self.root.configure(bg="#f8f9fa")
 
         main_frame = tk.Frame(self.root, bg="#f8f9fa", padx=20, pady=20)
@@ -23,7 +24,9 @@ class CRUDWindow:
 
         # --- TABLA DE PRODUCTOS ---
         columnas = ("ID", "Nombre", "Precio", "Stock")
-        self.tabla = ttk.Treeview(main_frame, columns=columnas, show="headings", height=8)
+        
+        # Aumentamos la altura de la tabla para que se expanda bien
+        self.tabla = ttk.Treeview(main_frame, columns=columnas, show="headings", height=15)
         
         self.tabla.heading("ID", text="ID")
         self.tabla.heading("Nombre", text="Nombre del Producto")
@@ -35,7 +38,8 @@ class CRUDWindow:
         self.tabla.column("Precio", width=130, anchor="e")
         self.tabla.column("Stock", width=100, anchor="center")
         
-        self.tabla.pack(fill="x", pady=(0, 15))
+        # Se cambia fill="x" por "both" con expand=True para rellenar pantalla
+        self.tabla.pack(fill="both", expand=True, pady=(0, 15))
         self.tabla.bind("<<TreeviewSelect>>", self.cargar_datos_seleccionados)
 
         self.cargar_tabla()
@@ -50,28 +54,29 @@ class CRUDWindow:
             padx=15, 
             pady=15
         )
-        form_frame.pack(fill="both", expand=True)
+        # Se asegura que el formulario también se estire hacia los lados
+        form_frame.pack(fill="x", expand=False, pady=(10, 0))
 
         tk.Label(form_frame, text="Nombre:", font=("Segoe UI", 9, "bold"), bg="#f8f9fa").grid(row=0, column=0, sticky="w", pady=5)
-        self.txt_nombre = tk.Entry(form_frame, font=("Segoe UI", 10), width=30, relief="solid", bd=1)
+        self.txt_nombre = tk.Entry(form_frame, font=("Segoe UI", 10), width=40, relief="solid", bd=1)
         self.txt_nombre.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
         tk.Label(form_frame, text="Precio ($):", font=("Segoe UI", 9, "bold"), bg="#f8f9fa").grid(row=1, column=0, sticky="w", pady=5)
-        self.txt_precio = tk.Entry(form_frame, font=("Segoe UI", 10), width=15, relief="solid", bd=1)
+        self.txt_precio = tk.Entry(form_frame, font=("Segoe UI", 10), width=20, relief="solid", bd=1)
         self.txt_precio.grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
         tk.Label(form_frame, text="Stock:", font=("Segoe UI", 9, "bold"), bg="#f8f9fa").grid(row=2, column=0, sticky="w", pady=5)
-        self.txt_stock = tk.Entry(form_frame, font=("Segoe UI", 10), width=15, relief="solid", bd=1)
+        self.txt_stock = tk.Entry(form_frame, font=("Segoe UI", 10), width=20, relief="solid", bd=1)
         self.txt_stock.grid(row=2, column=1, padx=10, pady=5, sticky="w")
 
         # Botones de Acción CRUD
         btn_frame = tk.Frame(form_frame, bg="#f8f9fa")
-        btn_frame.grid(row=3, column=0, columnspan=2, pady=15)
+        btn_frame.grid(row=3, column=0, columnspan=2, pady=15, sticky="w")
 
         tk.Button(
             btn_frame, text="➕ Crear Nuevo", bg="#28a745", fg="white", font=("Segoe UI", 9, "bold"),
             relief="flat", padx=10, pady=6, cursor="hand2", command=self.crear
-        ).pack(side="left", padx=5)
+        ).pack(side="left", padx=(0, 5))
 
         tk.Button(
             btn_frame, text="✏️ Actualizar", bg="#ffc107", fg="#212529", font=("Segoe UI", 9, "bold"),

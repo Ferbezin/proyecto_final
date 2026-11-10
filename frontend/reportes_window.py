@@ -14,8 +14,9 @@ class ReportesWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("E-Market Express - Panel Gerencial (Gráficos)")
-        self.root.geometry("1000x650")
-        self.root.resizable(False, False)
+        
+        # PANTALLA COMPLETA: Maximizamos la ventana y permitimos que se expanda
+        self.root.state('zoomed')
         self.root.configure(bg="#f8f9fa")
 
         # --- Encabezado ---
@@ -62,7 +63,9 @@ class ReportesWindow:
         self.graficas_frame.pack(fill="both", expand=True, padx=20, pady=(10, 20))
 
         plt.style.use('ggplot')
-        self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2, figsize=(10, 5), dpi=100)
+        
+        # ALTA DEFINICIÓN: Aumentamos figsize a (12, 6) y dpi a 130 para evitar el pixelado en pantalla completa
+        self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2, figsize=(12, 6), dpi=130)
         self.fig.patch.set_facecolor('#ffffff')
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graficas_frame)
