@@ -4,15 +4,16 @@ import psycopg2
 DB_CONFIG = {
     "dbname": "proyecto_final",
     "user": "postgres",
-    "password": "12345",  # Verifica que esta sea tu contraseña
+    "password": "1234",  
     "host": "localhost",
-    "port": "5432"
+    "port": "5432",
+    "options": "-c lc_messages=C"  # <-- ESTA LÍNEA ES LA CLAVE
 }
 
 def conectar_bd():
     try:
         conexion = psycopg2.connect(**DB_CONFIG)
-        conexion.set_client_encoding('UTF8')
+        conexion.set_client_encoding('LATIN1')
         return conexion
     except Exception as e:
         print(f"Error al conectar a la BD: {e}")
@@ -41,13 +42,15 @@ def ejecutar_consulta(query, params=None, fetch=False):
                 fila_limpia = []
                 for val in fila:
                     if isinstance(val, bytes):
-                        val = val.decode('utf-8', errors='ignore')
+                        # Ajustado a latin1 para coincidir con la codificación de la BD
+                        val = val.decode('latin1', errors='ignore')
                     fila_limpia.append(val)
                 resultado.append(dict(zip(columnas, fila_limpia)))
         
         conexion.commit()
         return resultado
     except Exception as e:
+        # Aquí es donde se imprimirá el error real en español
         print(f"Error en consulta: {e}")
         return None
     finally:

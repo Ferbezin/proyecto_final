@@ -26,7 +26,7 @@ def listar_productos_con_categoria():
         conexion = psycopg2.connect(
             dbname="proyecto_final",
             user="postgres",
-            password="12345",
+            password="1234",
             host="localhost",
             port="5432",
             options="-c client_encoding=UTF8"
@@ -96,7 +96,7 @@ def obtener_categorias_db():
     """Obtiene el listado de categorías disponibles."""
     try:
         conexion = psycopg2.connect(
-            dbname="proyecto_final", user="postgres", password="12345", host="localhost", port="5432"
+            dbname="proyecto_final", user="postgres", password="1234", host="localhost", port="5432"
         )
         cursor = conexion.cursor(cursor_factory=RealDictCursor)
         cursor.execute("SELECT id_categoria, nombre FROM categoria ORDER BY nombre ASC;")
@@ -112,7 +112,7 @@ def crear_articulo_con_cat(nombre, precio, stock, id_categoria):
     """Crea un artículo asignándole su categoría."""
     try:
         conexion = psycopg2.connect(
-            dbname="proyecto_final", user="postgres", password="12345", host="localhost", port="5432"
+            dbname="proyecto_final", user="postgres", password="1234", host="localhost", port="5432"
         )
         conexion.autocommit = True
         cursor = conexion.cursor()
@@ -131,7 +131,7 @@ def actualizar_articulo_con_cat(codigo_producto, nombre, precio, stock, id_categ
     """Actualiza los datos de un artículo existente."""
     try:
         conexion = psycopg2.connect(
-            dbname="proyecto_final", user="postgres", password="12345", host="localhost", port="5432"
+            dbname="proyecto_final", user="postgres", password="1234", host="localhost", port="5432"
         )
         conexion.autocommit = True
         cursor = conexion.cursor()

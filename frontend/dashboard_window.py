@@ -279,6 +279,17 @@ class DashboardWindow:
         # Cargar catálogo de PostgreSQL
         self.cargar_catalogo()
 
+        # Botón de Actualizar / Refrescar Catálogo
+        self.btn_actualizar = ctk.CTkButton(
+            header,
+            text="🔄 Actualizar",
+            width=110,
+            fg_color="#2b3137",
+            hover_color="#3e444b",
+            command=self.recargar_catalogo_manual
+        )
+        self.btn_actualizar.pack(side="right", padx=10)
+
     # --- CONTADORES INFERIORES (- / +) ---
     def incrementar_cant(self):
         try:
@@ -617,11 +628,15 @@ class DashboardWindow:
 
     def abrir_panel_admin(self):
         ventana_crud = ctk.CTkToplevel(self.root)
-        ventana_crud.title("Panel Gerencial — CRUD")
+        ventana_crud.title("Panel Gerencial - CRUD")
         ventana_crud.geometry("900x600")
         ventana_crud.lift()
         ventana_crud.focus_force()
         app_crud = CRUDWindow(ventana_crud)
+        
+        # --- NUEVAS LÍNEAS PARA LA SINCRONIZACIÓN AUTOMÁTICA ---
+        self.root.wait_window(ventana_crud)
+        self.cargar_catalogo()
 
     def abrir_panel_reportes(self):
         ventana_reportes = ctk.CTkToplevel(self.root)
@@ -637,3 +652,13 @@ class DashboardWindow:
         nueva_raiz = ctk.CTk()
         app_login = LoginWindow(nueva_raiz)
         nueva_raiz.mainloop()
+
+    def recargar_catalogo_manual(self):
+        """Recarga de forma manual el catálogo y las categorías desde la BD."""
+        try:
+            self.cargar_catalogo()
+            messagebox.showinfo("Actualizado", "Catálogo recargado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo recargar: {e}")
+        
+        

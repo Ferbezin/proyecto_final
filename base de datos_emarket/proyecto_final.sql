@@ -98,9 +98,8 @@ CREATE TABLE pedido_articulo (
     subtotal DECIMAL(12,2) GENERATED ALWAYS AS (cantidad_vendida * precio_facturado) STORED,
     PRIMARY KEY (id_pedido, codigo_producto),
     CONSTRAINT fk_pa_ped FOREIGN KEY (id_pedido) REFERENCES pedido (id_pedido) ON DELETE CASCADE,
-    CONSTRAINT fk_pa_art FOREIGN KEY (codigo_producto) REFERENCES articulo (codigo_producto)
+    CONSTRAINT fk_pa_art FOREIGN KEY (codigo_producto) REFERENCES articulo (codigo_producto) ON DELETE CASCADE
 );
-
 
 CREATE TABLE factura_pago (
     id_factura SERIAL PRIMARY KEY,

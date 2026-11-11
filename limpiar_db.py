@@ -1,3 +1,4 @@
+import os
 from backend.conexion import conectar_bd
 
 def reiniciar_sistema_completo():
@@ -10,23 +11,31 @@ def reiniciar_sistema_completo():
     try:
         cursor = conexion.cursor()
         
-        # 1. Borra todas las ventas, vacía los filtros de tiempo y reinicia los IDs de comprobantes a 1
-        cursor.execute("TRUNCATE TABLE pedido RESTART IDENTITY CASCADE;")
+        # 1. Borrar toda la estructura vieja para evitar choques con el código nuevo
+        print("Eliminando estructura antigua de la base de datos...")
+        cursor.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
         
-        # 2. Restaura el stock de todos los artículos en el catálogo a 50 unidades
-        cursor.execute("UPDATE articulo SET cantidad_disponible = 50;")
+        # 2. Leer el archivo SQL actualizado de tus compañeros
+        ruta_sql = 'base de datos_emarket/proyecto_final.sql'
         
-        conexion.commit()
-        
-        print("Sistema reseteado con éxito.")
-        print("Comprobantes, histórico general, ventas de hoy y 5 min están en CERO.")
-        print("El stock de todos los artículos ha vuelto a 50 unidades.")
-        
+        if os.path.exists(ruta_sql):
+            with open(ruta_sql, 'r', encoding='utf-8') as archivo_sql:
+                script = archivo_sql.read()
+            
+            # 3. Ejecutar el script para crear las tablas nuevas e insertar los productos
+            print("Inyectando nueva estructura y datos desde proyecto_final.sql...")
+            cursor.execute(script)
+            conexion.commit()
+            
+            print("¡Base de datos actualizada y reconstruida con éxito!")
+        else:
+            print(f"Error: No se encontró el archivo {ruta_sql} en la carpeta actual.")
+            
     except Exception as e:
-        print(f"Error al limpiar: {e}")
+        print(f"Error al limpiar y actualizar la base de datos: {e}")
         conexion.rollback()
     finally:
-        if cursor: 
+        if 'cursor' in locals() and cursor: 
             cursor.close()
         if conexion: 
             conexion.close()
