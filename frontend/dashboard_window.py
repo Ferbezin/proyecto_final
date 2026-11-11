@@ -14,19 +14,14 @@ class DashboardWindow:
         self.usuario_actual = usuario_actual
         self.root.title("E-Market Express — Enterprise Dashboard")
         
-        # FORZAR PANTALLA COMPLETA
         self.root.configure(fg_color="#070a12")
         self.root.after(50, lambda: self.root.state('zoomed'))
 
-        # Variables de estado
         self.carrito = []
         self.total_pedido = 0.0
         self.todos_los_productos = []
         self.producto_seleccionado = None
 
-        # ==========================================
-        # HEADER SUPERIOR (NAVBAR ELEGANTE)
-        # ==========================================
         header = ctk.CTkFrame(self.root, fg_color="#0f172a", height=70, corner_radius=0, border_width=1, border_color="#1e293b")
         header.pack(fill="x", side="top")
         header.pack_propagate(False)
@@ -100,15 +95,10 @@ class DashboardWindow:
             command=self.cerrar_sesion
         ).pack(side="left", padx=(10, 0))
 
-        # ==========================================
-        # CONTENEDOR PRINCIPAL (2 COLUMNAS)
-        # ==========================================
         main_body = ctk.CTkFrame(self.root, fg_color="transparent")
         main_body.pack(fill="both", expand=True, padx=25, pady=20)
 
-        # ------------------------------------------
-        # COLUMNA IZQUIERDA: CATÁLOGO DINÁMICO
-        # ------------------------------------------
+      
         col_left = ctk.CTkFrame(main_body, fg_color="#0f172a", corner_radius=16, border_width=1, border_color="#1e293b")
         col_left.pack(side="left", fill="both", expand=True, padx=(0, 15))
 
@@ -122,7 +112,6 @@ class DashboardWindow:
             text_color="#ffffff"
         ).pack(side="left")
 
-        # BARRA DE FILTROS: BUSCADOR + DESPLEGABLE
         frame_filtros = ctk.CTkFrame(col_left, fg_color="#1e293b", corner_radius=12)
         frame_filtros.pack(fill="x", padx=20, pady=(0, 15))
 
@@ -205,9 +194,7 @@ class DashboardWindow:
             command=self.agregar_al_pedido
         ).pack(side="left")
 
-        # ------------------------------------------
-        # COLUMNA DERECHA: RESUMEN Y TICKET DE COMPRA
-        # ------------------------------------------
+      
         col_right = ctk.CTkFrame(main_body, fg_color="#0f172a", corner_radius=16, width=400, border_width=1, border_color="#1e293b")
         col_right.pack(side="right", fill="both")
         col_right.pack_propagate(False)

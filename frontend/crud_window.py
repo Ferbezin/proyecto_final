@@ -49,13 +49,9 @@ class CRUDWindow:
             command=self.volver_al_dashboard
         ).pack(side="right")
 
-        # ==========================================
-        # SPLIT LAYOUT: TABLA IZQ | FORMULARIO DER
-        # ==========================================
         body_frame = ctk.CTkFrame(main_container, fg_color="transparent")
         body_frame.pack(fill="both", expand=True)
 
-        # --- SECCIÓN IZQUIERDA: TABLA DE PRODUCTOS ---
         left_frame = ctk.CTkFrame(body_frame, fg_color="#0f172a", corner_radius=15, border_width=1, border_color="#1e293b")
         left_frame.pack(side="left", fill="both", expand=True, padx=(0, 15))
 
@@ -66,7 +62,7 @@ class CRUDWindow:
             text_color="#38bdf8"
         ).pack(anchor="w", padx=20, pady=(15, 10))
 
-        # Tabla Estilizada
+        # Tabla 
         table_wrapper = ctk.CTkFrame(left_frame, fg_color="#1e293b", corner_radius=10, border_width=1, border_color="#334155")
         table_wrapper.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 

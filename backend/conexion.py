@@ -4,10 +4,10 @@ import psycopg2
 DB_CONFIG = {
     "dbname": "proyecto_final",
     "user": "postgres",
-    "password": "1234",  
+    "password": "12345",  
     "host": "localhost",
     "port": "5432",
-    "options": "-c lc_messages=C"  # <-- ESTA LÍNEA ES LA CLAVE
+    "options": "-c lc_messages=C" 
 }
 
 def conectar_bd():
@@ -42,7 +42,6 @@ def ejecutar_consulta(query, params=None, fetch=False):
                 fila_limpia = []
                 for val in fila:
                     if isinstance(val, bytes):
-                        # Ajustado a latin1 para coincidir con la codificación de la BD
                         val = val.decode('latin1', errors='ignore')
                     fila_limpia.append(val)
                 resultado.append(dict(zip(columnas, fila_limpia)))
@@ -66,7 +65,6 @@ def ejecutar_procedimiento(nombre_sp, params=None):
             return False, "No se pudo conectar a la base de datos."
         cursor = conexion.cursor()
         
-        # Solución para PostgreSQL moderno: Forzar el uso de CALL
         if params:
             placeholders = ", ".join(["%s"] * len(params))
             query = f"CALL {nombre_sp}({placeholders});"

@@ -6,7 +6,7 @@ import csv
 #De aqui en adelante seran las funciones que mas o menos tenga que usar el de la interfaz para ver como muestra las consultas mas apropiadas
 #Estos son fundamentalmente los SELECTS que vaya a usar.
 
-def obtener_top_productos_vendidos(limite=5, filtro="Histórico Completo"):
+def obtener_top_productos_vendidos(limite=5, filtro="Historico Completo"):
     # 1. Consulta base uniendo la tabla 'pedido'
     query = """
         SELECT p.codigo_producto, a.nombre, SUM(p.cantidad_vendida) as total_vendido
@@ -16,7 +16,7 @@ def obtener_top_productos_vendidos(limite=5, filtro="Histórico Completo"):
     """
     
     # 2. Aplicar el filtro de tiempo si es necesario
-    if filtro == "Últimos 5 min":
+    if filtro == "Ultimos 5 min":
         query += " WHERE ped.f_transaccion >= NOW() - INTERVAL '5 minutes'"
     elif filtro == "Hoy":
         query += " WHERE DATE(ped.f_transaccion) = CURRENT_DATE"
@@ -50,14 +50,21 @@ def obtener_inventario_critico(umbral_minimo=10):
     return ejecutar_consulta(query, params=(umbral_minimo,), fetch=True)
 
 def obtener_inventario_completo():
+    """Obtiene todo el inventario asociando el nombre de la categoria en PostgreSQL."""
     query = """
-        SELECT codigo_producto, nombre, cantidad_disponible
-        FROM articulo
-        ORDER BY cantidad_disponible ASC;
+        SELECT 
+            a.codigo_producto,
+            a.nombre,
+            a.precio_lista,
+            a.cantidad_disponible,
+            COALESCE(c.nombre, 'Sin Categoria') AS categoria
+        FROM articulo a
+        LEFT JOIN categoria c ON a.id_categoria = c.id_categoria
+        ORDER BY a.codigo_producto ASC;
     """
     return ejecutar_consulta(query, fetch=True)
 
-#IMPORTANTE: Hay que hacer un botón o algo para la funcion de aqui abajo, la cual, crea un csv con los datos
+#IMPORTANTE: Hay que hacer un boton o algo para la funcion de aqui abajo, la cual, crea un csv con los datos
 #de cualquiera de las 3 consultas anteriores, si lo ve pertinente, puede hacer mas consultas utiles.
 
 def exportar_reporte_a_csv(datos, nombre_archivo="reporte.csv"):
@@ -83,4 +90,3 @@ if __name__ == "__main__":
     
     print("\nProbando reporte: Inventario critico")
     print(obtener_inventario_critico())
-    #Esto se puede quitar es solo para ver si funciona sin interfaz grafica
